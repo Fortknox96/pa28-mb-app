@@ -4,7 +4,6 @@ import plotly.graph_objects as go
 # --- CONFIGURAZIONE MOBILE ---
 st.set_page_config(page_title="PA-28RT M&B", page_icon="✈️", layout="centered")
 
-# Nasconde i menu di Streamlit per farla sembrare un'app nativa su iPhone
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
@@ -34,8 +33,8 @@ CG_ENV_Y = [1400, 2900, 2900, 1400, 1400, 2400]
 # --- FATTORI DI CONVERSIONE ---
 KG_TO_LBS = 2.20462
 LITRI_TO_GAL = 0.264172
-GAL_TO_LBS = 6.0  # Peso standard Avgas 100LL
-LITRI_TO_LBS = LITRI_TO_GAL * GAL_TO_LBS  # Circa 1.585 lbs per litro
+GAL_TO_LBS = 6.0  
+LITRI_TO_LBS = LITRI_TO_GAL * GAL_TO_LBS  
 
 # --- INPUT DATI: AEREO VUOTO ---
 st.subheader("1. Aereo Vuoto (da POH)")
@@ -69,7 +68,7 @@ col_vuota3, col_bagagliaio, col_vuota4 = st.columns([1, 2, 1])
 with col_bagagliaio:
     bagagliaio_kg = st.number_input("🎒 Bagagli (kg - Max 90)", value=0, step=1, max_value=90)
 
-# --- CONVERSIONI IN LBS PER I CALCOLI ---
+# --- CONVERSIONI IN LBS ---
 front_pax_lbs = (pilota_kg + pax_ant_kg) * KG_TO_LBS
 rear_pax_lbs = (pax_post_sx_kg + pax_post_dx_kg) * KG_TO_LBS
 baggage_lbs = bagagliaio_kg * KG_TO_LBS
@@ -107,54 +106,46 @@ col7, col8 = st.columns(2)
 col7.metric("Takeoff CG", f"{cg_takeoff:.2f} in")
 col8.metric("Zero Fuel CG", f"{cg_zfw:.2f} in")
 
-# --- GRAFICO 1: PROFILO BARICENTRO PULITO ---
+# --- GRAFICO 1: PROFILO BARICENTRO (CON ADD_SHAPE SICURO) ---
 st.subheader("Posizione Baricentro")
-
 fig_cg_profile = go.Figure()
 
-# Aggiunge le zone di colore (Sotto-limiti, Sicuro, Oltre-limiti)
-fig_cg_profile.add_vrect(x0=82, x1=85, fillcolor="lightgray", opacity=0.5, line_width=0, annotation_text="Anticipato/Fwd", annotation_position="top left")
-fig_cg_profile.add_vrect(x0=85, x1=93, fillcolor="lightgreen", opacity=0.5, line_width=0, annotation_text="RANGE SICURO", annotation_position="top center")
-fig_cg_profile.add_vrect(x0=93, x1=95, fillcolor="lightcoral", opacity=0.5, line_width=0, annotation_text="Aft/Post", annotation_position="top right")
+fig_cg_profile.add_shape(type="rect", x0=82, x1=85, y0=0, y1=2, fillcolor="lightgray", opacity=0.5, line_width=0)
+fig_cg_profile.add_shape(type="rect", x0=85, x1=93, y0=0, y1=2, fillcolor="lightgreen", opacity=0.5, line_width=0)
+fig_cg_profile.add_shape(type="rect", x0=93, x1=95, y0=0, y1=2, fillcolor="lightcoral", opacity=0.5, line_width=0)
 
-# Aggiunge il punto esatto del baricentro attuale
 fig_cg_profile.add_trace(go.Scatter(
     x=[cg_takeoff], y=[1],
     mode="markers+text",
-    marker=dict(color="darkblue", size=20, symbol="diamond"),
+    marker=dict(color="darkblue", size=18, symbol="diamond"),
     text=[f"CG: {cg_takeoff:.2f} in"],
     textposition="top center"
 ))
 
 fig_cg_profile.update_layout(
-    xaxis=dict(range=[82, 95], title="CG Location (inches)"),
+    xaxis=dict(range=[82, 95], title="CG Location (inches aft of datum)"),
     yaxis=dict(showticklabels=False, range=[0, 2]),
     height=140,
     margin=dict(l=20, r=20, t=10, b=20),
     showlegend=False
 )
-
 st.plotly_chart(fig_cg_profile, use_container_width=True)
 
 # --- GRAFICO 2: INVILUPPO COMPLETO ---
 st.subheader("Inviluppo di Volo")
 fig = go.Figure()
 
-# Disegna Poligono Inviluppo
 fig.add_trace(go.Scatter(x=CG_ENV_X, y=CG_ENV_Y, fill='toself', 
                          fillcolor='rgba(0, 150, 0, 0.2)', line=dict(color='green', width=2), name='Limiti CG'))
 
-# Punto Decollo
 fig.add_trace(go.Scatter(x=[cg_takeoff], y=[takeoff_wt], mode='markers+text',
                          marker=dict(color='blue', size=12, symbol='circle'),
                          text=['Takeoff'], textposition='top right', name='Takeoff'))
 
-# Punto Zero Fuel
 fig.add_trace(go.Scatter(x=[cg_zfw], y=[zero_fuel_wt], mode='markers+text',
                          marker=dict(color='red', size=10, symbol='x'),
                          text=['Zero Fuel'], textposition='bottom left', name='Zero Fuel'))
 
-# Linea consumo carburante
 fig.add_trace(go.Scatter(x=[cg_takeoff, cg_zfw], y=[takeoff_wt, zero_fuel_wt],
                          mode='lines', line=dict(color='black', dash='dash'), name='Fuel Burn'))
 
