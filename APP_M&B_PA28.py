@@ -107,24 +107,33 @@ col7, col8 = st.columns(2)
 col7.metric("Takeoff CG", f"{cg_takeoff:.2f} in")
 col8.metric("Zero Fuel CG", f"{cg_zfw:.2f} in")
 
-# --- GRAFICO 1: PROFILO BARICENTRO ---
+# --- GRAFICO 1: PROFILO BARICENTRO PULITO ---
 st.subheader("Posizione Baricentro")
-fig_cg_profile = go.Figure(go.Indicator(
-    mode = "number+gauge",
-    value = cg_takeoff,
-    title = {'text': "CG (inches aft of datum)"},
-    gauge = {
-        'shape': "bullet",
-        'axis': {'range': [82, 95]}, 
-        'steps': [
-            {'range': [82, 85], 'color': "lightgray"},
-            {'range': [85, 93], 'color': "lightgreen"}, # Limite di sicurezza
-            {'range': [93, 95], 'color': "lightcoral"}
-        ],
-        'bar': {'color': "darkblue", 'thickness': 0.5}
-    }
+
+fig_cg_profile = go.Figure()
+
+# Aggiunge le zone di colore (Sotto-limiti, Sicuro, Oltre-limiti)
+fig_cg_profile.add_vrect(x0=82, x1=85, fillcolor="lightgray", opacity=0.5, line_width=0, annotation_text="Anticipato/Fwd", annotation_position="top left")
+fig_cg_profile.add_vrect(x0=85, x1=93, fillcolor="lightgreen", opacity=0.5, line_width=0, annotation_text="RANGE SICURO", annotation_position="top center")
+fig_cg_profile.add_vrect(x0=93, x1=95, fillcolor="lightcoral", opacity=0.5, line_width=0, annotation_text="Aft/Post", annotation_position="top right")
+
+# Aggiunge il punto esatto del baricentro attuale
+fig_cg_profile.add_trace(go.Scatter(
+    x=[cg_takeoff], y=[1],
+    mode="markers+text",
+    marker=dict(color="darkblue", size=20, symbol="diamond"),
+    text=[f"CG: {cg_takeoff:.2f} in"],
+    textposition="top center"
 ))
-fig_cg_profile.update_layout(height=150, margin=dict(l=20, r=20, t=30, b=20))
+
+fig_cg_profile.update_layout(
+    xaxis=dict(range=[82, 95], title="CG Location (inches)"),
+    yaxis=dict(showticklabels=False, range=[0, 2]),
+    height=140,
+    margin=dict(l=20, r=20, t=10, b=20),
+    showlegend=False
+)
+
 st.plotly_chart(fig_cg_profile, use_container_width=True)
 
 # --- GRAFICO 2: INVILUPPO COMPLETO ---
