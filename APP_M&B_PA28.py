@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 # --- CONFIGURAZIONE MOBILE ---
 st.set_page_config(page_title="PA-28RT M&B", page_icon="✈️", layout="centered")
 
-# Nasconde i menu di Streamlit per farla sembrare un'app nativa
+# Nasconde i menu di Streamlit per farla sembrare un'app nativa su iPhone
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
@@ -14,7 +14,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 st.title("✈️ PA-28RT-201T")
-st.markdown("**Mass & Balance Calculator**")
+st.markdown("**Mass & Balance Calculator (Metric Input)**")
 
 # --- DATI DAL MANUALE (POH) ---
 MAX_TAKEOFF_WT = 2900.0
@@ -26,7 +26,6 @@ ARM_FRONT = 80.5
 ARM_REAR = 118.1
 ARM_FUEL = 95.0
 ARM_BAGGAGE = 142.8
-FUEL_LBS_PER_GAL = 6.0
 
 # Inviluppo CG (Coordinate Poligono Sicurezza)
 CG_ENV_X = [85.0, 89.0, 93.0, 93.0, 85.0, 85.0]
@@ -38,8 +37,14 @@ LITRI_TO_GAL = 0.264172
 GAL_TO_LBS = 6.0  # Peso standard Avgas 100LL
 LITRI_TO_LBS = LITRI_TO_GAL * GAL_TO_LBS  # Circa 1.585 lbs per litro
 
+# --- INPUT DATI: AEREO VUOTO ---
+st.subheader("1. Aereo Vuoto (da POH)")
+col1, col2 = st.columns(2)
+bew = col1.number_input("Basic Empty Wt (lbs)", value=1896.0, step=10.0)
+bew_cg = col2.number_input("Empty CG (in)", value=88.2, step=0.1)
+
 # --- INPUT DATI: VISTA DALL'ALTO DELL'AEREO ---
-st.subheader("1. Carico (Sistema Metrico)")
+st.subheader("2. Carico (Sistema Metrico)")
 
 # Riga 1: Ali e Sedili Anteriori
 col_ala_sx, col_pilota, col_pax_ant, col_ala_dx = st.columns(4)
@@ -62,8 +67,7 @@ with col_pax_post_dx:
 # Riga 3: Bagagliaio
 col_vuota3, col_bagagliaio, col_vuota4 = st.columns([1, 2, 1])
 with col_bagagliaio:
-    # 200 lbs = circa 90.7 kg
-    bagagliaio_kg = st.number_input("🎒 Bagagliaio (kg - Max 90)", value=0, step=1, max_value=90)
+    bagagliaio_kg = st.number_input("🎒 Bagagli (kg - Max 90)", value=0, step=1, max_value=90)
 
 # --- CONVERSIONI IN LBS PER I CALCOLI ---
 front_pax_lbs = (pilota_kg + pax_ant_kg) * KG_TO_LBS
@@ -89,6 +93,7 @@ mom_zfw = mom_ramp - mom_fuel
 
 cg_takeoff = mom_takeoff / takeoff_wt if takeoff_wt > 0 else 0
 cg_zfw = mom_zfw / zero_fuel_wt if zero_fuel_wt > 0 else 0
+
 # --- VERDETTO E RISULTATI ---
 st.markdown("---")
 if ramp_wt > MAX_RAMP_WT:
@@ -101,28 +106,29 @@ else:
 col7, col8 = st.columns(2)
 col7.metric("Takeoff CG", f"{cg_takeoff:.2f} in")
 col8.metric("Zero Fuel CG", f"{cg_zfw:.2f} in")
-st.subheader("2. Posizione Baricentro (Profilo)")
 
-# Grafico a Indicatore (Gauge) orizzontale per mostrare dove cade il CG
+# --- GRAFICO 1: PROFILO BARICENTRO ---
+st.subheader("Posizione Baricentro")
 fig_cg_profile = go.Figure(go.Indicator(
     mode = "number+gauge",
     value = cg_takeoff,
-    title = {'text': "CG Position (inches aft of datum)"},
+    title = {'text': "CG (inches aft of datum)"},
     gauge = {
         'shape': "bullet",
-        'axis': {'range': [82, 95]}, # Range visivo totale
+        'axis': {'range': [82, 95]}, 
         'steps': [
             {'range': [82, 85], 'color': "lightgray"},
-            {'range': [85, 93], 'color': "lightgreen"}, # Limite di sicurezza (da POH)
+            {'range': [85, 93], 'color': "lightgreen"}, # Limite di sicurezza
             {'range': [93, 95], 'color': "lightcoral"}
         ],
         'bar': {'color': "darkblue", 'thickness': 0.5}
     }
 ))
-
 fig_cg_profile.update_layout(height=150, margin=dict(l=20, r=20, t=30, b=20))
 st.plotly_chart(fig_cg_profile, use_container_width=True)
-# --- GRAFICO PLOTLY ---
+
+# --- GRAFICO 2: INVILUPPO COMPLETO ---
+st.subheader("Inviluppo di Volo")
 fig = go.Figure()
 
 # Disegna Poligono Inviluppo
@@ -143,8 +149,10 @@ fig.add_trace(go.Scatter(x=[cg_zfw], y=[zero_fuel_wt], mode='markers+text',
 fig.add_trace(go.Scatter(x=[cg_takeoff, cg_zfw], y=[takeoff_wt, zero_fuel_wt],
                          mode='lines', line=dict(color='black', dash='dash'), name='Fuel Burn'))
 
-fig.update_layout(title="Inviluppo Centro di Gravità", xaxis_title="CG (inches aft of datum)",
-                  yaxis_title="Weight (lbs)", xaxis_range=[84, 95], yaxis_range=[1400, 3000],
-                  margin=dict(l=20, r=20, t=40, b=20), height=450)
+fig.update_layout(xaxis_title="CG Location (inches aft of datum)", yaxis_title="Weight (lbs)", 
+                  xaxis_range=[84, 95], yaxis_range=[1400, 3000],
+                  margin=dict(l=20, r=20, t=20, b=20), height=400)
 
 st.plotly_chart(fig, use_container_width=True)
+
+st.caption("Nota: App a solo scopo didattico/informativo. Fare sempre riferimento al POH ufficiale.")
